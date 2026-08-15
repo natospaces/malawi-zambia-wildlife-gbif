@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movement & season — MAZA occurrence viewer</title>
+<style>
+  :root {
+    --ink: #14201a; --paper: #f3efe6; --line: #cbbfa6;
+    --amber: #c58a2e; --muted: #6a6552;
+    --wet: #3f6f7a; --dry: #b8892f; --water: #3f6f7a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    color: var(--ink); background: var(--paper);
+    line-height: 1.62; padding: clamp(28px, 6vw, 80px);
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .eyebrow {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    letter-spacing: .24em; text-transform: uppercase; color: var(--amber);
+    margin: 0 0 18px;
+  }
+  h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.15; margin: 0 0 10px; font-weight: 400; }
+  .lede { font-size: clamp(16px, 2.4vw, 19px); color: #3a463c; margin: 0 0 8px; }
+  h2 {
+    font-family: ui-monospace, monospace; font-size: 13px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--ink); margin: 46px 0 14px;
+    border-bottom: 1px solid var(--line); padding-bottom: 8px;
+  }
+  p { margin: 0 0 16px; }
+  a { color: #9a6a1c; text-underline-offset: 3px; }
+  em.term { font-style: italic; color: #3a463c; }
+
+  /* Seasonal chart */
+  .season-wrap { margin: 22px 0 8px; }
+  .season-toggle {
+    display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap;
+    font-family: ui-monospace, monospace; font-size: 12px;
+  }
+  .season-toggle button {
+    border: 1px solid var(--line); background: transparent; color: var(--ink);
+    padding: 7px 13px; border-radius: 2px; cursor: pointer;
+  }
+  .season-toggle button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .chart { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; align-items: end; height: 200px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+  .bar {
+    width: 100%; border-radius: 2px 2px 0 0; transition: height .5s ease;
+    min-height: 2px;
+  }
+  .bar-label { font-family: ui-monospace, monospace; font-size: 9px; color: var(--muted); margin-top: 6px; }
+  .season-band { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; margin-top: 2px; }
+  .band-cell { height: 5px; border-radius: 1px; }
+  .band-wet { background: var(--wet); opacity: .5; }
+  .band-dry { background: var(--dry); opacity: .5; }
+  .legend-row { font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); margin-top: 12px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .legend-row span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .lg-wet::before { background: var(--wet); }
+  .lg-dry::before { background: var(--dry); }
+  .chart-note { font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); margin-top: 14px; line-height: 1.6; }
+
+  .callout {
+    background: var(--ink); color: var(--paper); border-radius: 4px;
+    padding: 22px 26px; margin: 22px 0; font-family: ui-monospace, monospace;
+    font-size: 13px; line-height: 1.7;
+  }
+  .callout b { color: #e8a13c; }
+  .callout.gap { background: rgba(178,58,46,.08); color: var(--ink); border: 1px solid rgba(178,58,46,.3); }
+  .callout.gap b { color: #b23a2e; }
+
+  .back {
+    display: inline-block; margin-top: 44px; font-family: ui-monospace, monospace;
+    font-size: 13px; background: var(--amber); color: var(--ink);
+    padding: 13px 24px; border-radius: 2px; text-decoration: none; font-weight: 700;
+  }
+  .foot { font-family: ui-monospace, monospace; font-size: 10.5px; color: var(--muted); margin-top: 44px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Movement &amp; season</p>
+  <h1>The landscape is not still</h1>
+  <p class="lede">Animals move with the seasons, water, and food. A single map of dots hides that. This page adds the dimension a static map can't — carefully, and only where open data honestly allows.</p>
+
+  <h2>When are these animals recorded?</h2>
+  <p>Every GBIF record carries a month. Counting records by month across the years shows a <em class="term">seasonal rhythm</em> — not a movement track, but a real signal of when animals are observed in this landscape. In the miombo of the Malawi–Zambia border, the year splits into a <b style="color:var(--wet)">wet season</b> (roughly November–April) and a <b style="color:var(--dry)">dry season</b> (May–October). Crop-raiding conflict is widely reported to peak as crops ripen in the wet-season growing months — the same window when fields hold the most to lose.</p>
+
+  <div class="season-wrap">
+    <div class="season-toggle" id="sptoggle"></div>
+    <div class="chart" id="chart"></div>
+    <div class="season-band" id="band"></div>
+    <div class="legend-row">
+      <span class="lg-wet">Wet season (Nov–Apr) — growing, ripening, most to raid</span>
+      <span class="lg-dry">Dry season (May–Oct) — animals concentrate near water</span>
+    </div>
+    <p class="chart-note" id="chartnote">Loading records from the live map data…</p>
+  </div>
+
+  <h2>Water pulls everything toward it</h2>
+  <p>In the dry season, surface water shrinks to the permanent rivers and the marsh. Animals — and the people fishing, watering livestock, and collecting water — converge on the same shrinking edges. That convergence is where much conflict happens, and it is something open data <em>can</em> show honestly: not as invented animal paths, but as the water features that shape where movement is even possible.</p>
+
+  <div class="callout">
+    On the main map, rivers and the Vwaza marsh act as a <b>movement affordance layer</b> —
+    the natural corridors water carves through the landscape. Where a crocodile or hippo
+    record sits on a river edge that also draws people, that is a real, data-grounded
+    overlap, not a guess.
+  </div>
+
+  <h2>What about actual corridors?</h2>
+  <p>The honest answer: this project does not draw them, because it cannot do so truthfully. Real elephant corridors are mapped from <em class="term">GPS collar telemetry</em> — millions of location points — processed with habitat-connectivity models. That data exists for this region (the KAZA elephant tracking work, and corridor studies in Zambian landscapes) but it is held by researchers and parks, not published as open layers.</p>
+
+  <div class="callout gap">
+    <b>A named gap, not a fabrication.</b> Drawing invented corridors would look
+    impressive and mislead. Instead, corridors are shown as what open data supports —
+    water and terrain as the affordances that channel movement — with real corridor
+    modelling flagged as the next step that needs collaboration and access to collar data.
+  </div>
+
+  <h2>Why this matters for food security</h2>
+  <p>The funded project frames this as human-wildlife <em>co-habitation</em>, tied to food security. Season is the link. Fields are most vulnerable in the wet-season growing months; water concentrates animals and people in the dry season. A tool that ignores season flattens a problem that is fundamentally about timing. Showing the seasonal rhythm — from real record-months, alongside where people farm and draw water — is how a data-led view starts to respect that timing rather than erase it.</p>
+
+  <p>None of this replaces the incident records, the collar data, or the knowledge of people who live it. It is a different generation's attempt to understand — one that does not think a single map of dots is enough, and that would rather show a real gap than fill it with something decorative.</p>
+
+  <a class="back" href="./">&larr; Back to the map</a>
+
+  <p class="foot">
+    Occurrence months: GBIF.org records &middot;
+    Land cover / cropland: ESA WorldCover 10m via Digital Earth Africa &middot;
+    Corridor science referenced: KAZA elephant tracking (WWF), Zambian connectivity studies &middot;
+    Seasonal framing: miombo wet/dry calendar; crop-raiding phenology from HWC literature.
+  </p>
+</div>
+
+<script>
+// Pull real record-months from the live map API and chart them.
+const MONTHS = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+// Wet season Nov(11)-Apr(4); dry May(5)-Oct(10).
+const WET = new Set([11,12,1,2,3,4]);
+
+async function api(q) {
+  const r = await fetch('api.php?q=' + q);
+  if (!r.ok) throw new Error('api ' + q);
+  return r.json();
+}
+
+let SPECIES_MONTHS = {};   // species -> [12 counts]
+let current = 'ALL';
+
+function seasonColor(monthIndex) {
+  // monthIndex 0..11 -> month 1..12
+  return WET.has(monthIndex + 1) ? getComputedStyle(document.documentElement).getPropertyValue('--wet')
+                                 : getComputedStyle(document.documentElement).getPropertyValue('--dry');
+}
+
+function render() {
+  const counts = current === 'ALL'
+    ? MONTHS.map((_, i) => Object.values(SPECIES_MONTHS).reduce((s, arr) => s + (arr[i] || 0), 0))
+    : (SPECIES_MONTHS[current] || new Array(12).fill(0));
+  const max = Math.max(1, ...counts);
+
+  const chart = document.getElementById('chart');
+  chart.innerHTML = '';
+  counts.forEach((n, i) => {
+    const col = document.createElement('div');
+    col.className = 'bar-col';
+    const h = Math.round((n / max) * 180);
+    col.innerHTML =
+      `<div class="bar" style="height:${h}px;background:${seasonColor(i).trim()}" title="${n} records"></div>` +
+      `<div class="bar-label">${MONTHS[i]}</div>`;
+    chart.appendChild(col);
+  });
+
+  const band = document.getElementById('band');
+  band.innerHTML = '';
+  for (let i = 0; i < 12; i++) {
+    const c = document.createElement('div');
+    c.className = 'band-cell ' + (WET.has(i + 1) ? 'band-wet' : 'band-dry');
+    band.appendChild(c);
+  }
+
+  const total = counts.reduce((a, b) => a + b, 0);
+  const wet = counts.reduce((s, n, i) => s + (WET.has(i + 1) ? n : 0), 0);
+  const pct = total ? Math.round((wet / total) * 100) : 0;
+  document.getElementById('chartnote').innerHTML =
+    total
+      ? `${total.toLocaleString()} dated records. ${pct}% fall in the wet season (Nov–Apr) — ` +
+        `the growing months when fields hold the most to lose. Bars are coloured by season.`
+      : `No month data available yet. Records may predate month-level dating, or the cache needs a refresh.`;
+}
+
+function buildToggle(speciesList) {
+  const t = document.getElementById('sptoggle');
+  const opts = ['ALL', ...speciesList];
+  t.innerHTML = '';
+  opts.forEach(s => {
+    const b = document.createElement('button');
+    b.textContent = s === 'ALL' ? 'All species' : s;
+    b.className = s === current ? 'on' : '';
+    b.onclick = () => { current = s; document.querySelectorAll('#sptoggle button').forEach(x => x.classList.remove('on')); b.classList.add('on'); render(); };
+    t.appendChild(b);
+  });
+}
+
+async function boot() {
+  try {
+    const counts = await api('counts');
+    const species = counts.map(c => c.common);
+    const nameByCommon = {};
+    counts.forEach(c => nameByCommon[c.common] = c.species);
+
+    // Fetch points per species, tally months.
+    for (const c of counts) {
+      const pts = await api('points&species=' + encodeURIComponent(c.species));
+      const arr = new Array(12).fill(0);
+      pts.forEach(p => { if (p.month && p.month >= 1 && p.month <= 12) arr[p.month - 1]++; });
+      SPECIES_MONTHS[c.common] = arr;
+    }
+    buildToggle(species);
+    render();
+  } catch (e) {
+    document.getElementById('chartnote').textContent =
+      'Could not load record months from the map data. The map itself still works — this is the seasonal view only.';
+  }
+}
+boot();
+</script>
+</body>
+</html>

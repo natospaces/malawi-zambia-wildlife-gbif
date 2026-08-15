@@ -1,0 +1,92 @@
+<svg viewBox="0 0 860 520" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5d6a7a"/>
+    </marker>
+    <style>
+      .title { font-family: Inter, system-ui, sans-serif; font-weight: 700; fill: #10161f; }
+      .lbl { font-weight: 600; font-size: 13px; }
+      .desc { font-size: 10.5px; fill: #5d6a7a; }
+      .note { font-size: 9.5px; fill: #8b98a8; }
+      .band { font-size: 10px; fill: #8b98a8; letter-spacing: 0.08em; }
+      .arw { stroke: #5d6a7a; stroke-width: 1.5; fill: none; marker-end: url(#arw); }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="860" height="520" fill="#ffffff"/>
+  <text x="40" y="46" class="title" font-size="22">MAZA occurrence viewer — architecture</text>
+  <text x="40" y="68" class="desc" font-size="12">GBIF → MySQL (system of record) → enrich → CSV (published copy) → map</text>
+
+  <!-- ETL band -->
+  <rect x="40" y="96" width="580" height="150" rx="8" fill="#f4f6f9" stroke="#dfe6ee"/>
+  <text x="56" y="116" class="band">ETL · etl.php · runs on cron</text>
+
+  <!-- GBIF -->
+  <rect x="60" y="132" width="120" height="80" rx="7" fill="#eef4fa" stroke="#6f8fb0" stroke-width="1.5"/>
+  <text x="120" y="162" text-anchor="middle" class="lbl" fill="#2c4a68">GBIF API</text>
+  <text x="120" y="180" text-anchor="middle" class="desc">extract</text>
+  <text x="120" y="197" text-anchor="middle" class="note">per-species window</text>
+
+  <path class="arw" d="M182 172 L212 172"/>
+
+  <!-- MySQL -->
+  <rect x="214" y="132" width="120" height="80" rx="7" fill="#faf1ea" stroke="#c17b4a" stroke-width="1.5"/>
+  <text x="274" y="162" text-anchor="middle" class="lbl" fill="#8a4e26">MySQL</text>
+  <text x="274" y="180" text-anchor="middle" class="desc">system of record</text>
+  <text x="274" y="197" text-anchor="middle" class="note">upsert on gbif_id</text>
+
+  <path class="arw" d="M336 172 L366 172"/>
+
+  <!-- Enrich -->
+  <rect x="368" y="132" width="120" height="80" rx="7" fill="#fbf3e2" stroke="#e0a13c" stroke-width="1.5"/>
+  <text x="428" y="162" text-anchor="middle" class="lbl" fill="#9a6a12">Enrich</text>
+  <text x="428" y="180" text-anchor="middle" class="desc">in-database</text>
+  <text x="428" y="197" text-anchor="middle" class="note">park · settled · village</text>
+
+  <path class="arw" d="M490 172 L520 172"/>
+
+  <!-- CSV -->
+  <rect x="522" y="132" width="80" height="80" rx="7" fill="#eef5e9" stroke="#7fa86b" stroke-width="1.5"/>
+  <text x="562" y="162" text-anchor="middle" class="lbl" fill="#4a6b38">CSV</text>
+  <text x="562" y="180" text-anchor="middle" class="desc">export</text>
+  <text x="562" y="197" text-anchor="middle" class="note">atomic</text>
+
+  <!-- web band -->
+  <rect x="648" y="96" width="172" height="150" rx="8" fill="#f4f6f9" stroke="#dfe6ee"/>
+  <text x="664" y="116" class="band">WEB · api.php</text>
+
+  <path class="arw" d="M604 172 L662 172"/>
+
+  <!-- api + map -->
+  <rect x="664" y="132" width="140" height="80" rx="7" fill="#ffffff" stroke="#26313f" stroke-width="1.5"/>
+  <text x="734" y="162" text-anchor="middle" class="lbl" fill="#10161f">api.php → map</text>
+  <text x="734" y="180" text-anchor="middle" class="desc">reads CSV only</text>
+  <text x="734" y="197" text-anchor="middle" class="note">no DB · no GBIF</text>
+
+  <!-- reference builders -->
+  <rect x="40" y="286" width="780" height="196" rx="8" fill="#fbfbfc" stroke="#dfe6ee"/>
+  <text x="56" y="308" class="band">REFERENCE BUILDERS · python · run offline, output uploaded beside the site</text>
+
+  <g>
+    <rect x="60" y="326" width="180" height="60" rx="6" fill="#ffffff" stroke="#dfe6ee"/>
+    <text x="150" y="352" text-anchor="middle" class="lbl" font-size="12" fill="#10161f">build_settlements.py</text>
+    <text x="150" y="370" text-anchor="middle" class="note">OSM place nodes → settlements.json</text>
+
+    <rect x="256" y="326" width="180" height="60" rx="6" fill="#ffffff" stroke="#dfe6ee"/>
+    <text x="346" y="352" text-anchor="middle" class="lbl" font-size="12" fill="#10161f">build_protected_areas.py</text>
+    <text x="346" y="370" text-anchor="middle" class="note">OSM reserves → .geojson</text>
+
+    <rect x="452" y="326" width="180" height="60" rx="6" fill="#ffffff" stroke="#dfe6ee"/>
+    <text x="542" y="352" text-anchor="middle" class="lbl" font-size="12" fill="#10161f">build_borders.py</text>
+    <text x="542" y="370" text-anchor="middle" class="note">geoBoundaries → borders.geojson</text>
+
+    <rect x="648" y="326" width="152" height="60" rx="6" fill="#ffffff" stroke="#dfe6ee"/>
+    <text x="724" y="352" text-anchor="middle" class="lbl" font-size="12" fill="#10161f">build_population.py</text>
+    <text x="724" y="370" text-anchor="middle" class="note">WorldPop → population.json</text>
+  </g>
+
+  <text x="60" y="418" class="desc" font-size="11">These reference files feed two consumers:</text>
+  <text x="60" y="438" class="note" font-size="10.5">• the ETL enrichment step (point-in-polygon, nearest-village, settled-area flags), and</text>
+  <text x="60" y="454" class="note" font-size="10.5">• the map's visual layers (population grid, reserve outlines, national border, settlement huts).</text>
+  <text x="60" y="470" class="note" font-size="10.5">All sources are open and redistributable: GBIF, WorldPop (CC-BY), OpenStreetMap (ODbL), geoBoundaries (CC-BY 4.0).</text>
+</svg>

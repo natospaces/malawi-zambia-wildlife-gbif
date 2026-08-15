@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What this map covers — MAZA occurrence viewer</title>
+<style>
+  :root {
+    --ink: #14201a; --paper: #f3efe6; --line: #cbbfa6;
+    --amber: #c58a2e; --muted: #6a6552;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    color: var(--ink); background: var(--paper);
+    line-height: 1.62; padding: clamp(28px, 6vw, 80px);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .eyebrow {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    letter-spacing: .24em; text-transform: uppercase; color: var(--amber);
+    margin: 0 0 18px;
+  }
+  h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.15; margin: 0 0 8px; font-weight: 400; }
+  .lede { font-size: clamp(16px, 2.4vw, 19px); color: #3a463c; margin: 0 0 36px; }
+  h2 {
+    font-family: ui-monospace, monospace; font-size: 13px; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--ink); margin: 40px 0 12px;
+    border-bottom: 1px solid var(--line); padding-bottom: 8px;
+  }
+  p { margin: 0 0 16px; }
+  a { color: #9a6a1c; text-underline-offset: 3px; }
+
+  .cover {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--line); border-radius: 4px; overflow: hidden;
+    margin: 24px 0 8px; font-family: ui-monospace, monospace; font-size: 13px;
+  }
+  .cover > div { padding: 20px 22px; }
+  .cover .head {
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px;
+  }
+  .cover .does { background: rgba(85,122,70,.10); border-right: 1px solid var(--line); }
+  .cover .doesnt { background: rgba(178,58,46,.06); }
+  .cover ul { margin: 0; padding-left: 18px; line-height: 1.7; }
+  .cover li { margin-bottom: 6px; }
+  @media (max-width: 620px) {
+    .cover { grid-template-columns: 1fr; }
+    .cover .does { border-right: none; border-bottom: 1px solid var(--line); }
+  }
+
+  .brief {
+    background: var(--ink); color: var(--paper); border-radius: 4px;
+    padding: 26px 28px; margin: 20px 0; font-family: ui-monospace, monospace;
+    font-size: 13px; line-height: 1.7;
+  }
+  .brief .q { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--amber); margin-bottom: 12px; }
+  .brief b { color: #e8a13c; }
+  .brief a { color: #e8a13c; }
+
+  .back {
+    display: inline-block; margin-top: 40px; font-family: ui-monospace, monospace;
+    font-size: 13px; background: var(--amber); color: var(--ink);
+    padding: 13px 24px; border-radius: 2px; text-decoration: none; font-weight: 700;
+  }
+  .foot { font-family: ui-monospace, monospace; font-size: 10.5px; color: var(--muted); margin-top: 48px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">What this is &amp; isn't</p>
+  <h1>A data layer, not a study</h1>
+  <p class="lede">And, just as importantly, what it does not. This is a data-engineering project, not a human-wildlife conflict study. It assembles open biodiversity data into a clean, documented, queryable map — a basic input that specialists in the field could draw on, not an analysis that stands in for their work.</p>
+
+  <h2>What this actually is</h2>
+  <p>Human-wildlife conflict analysis is a serious specialist discipline. Done properly it draws on incident records, population modelling, compensation data, and long community consultation, and getting it wrong has real consequences — misdirected funding, misplaced blame on communities, animals killed on weak evidence. This project does not attempt that, and does not claim to.</p>
+
+  <p>What it is: a demonstration of data engineering. It takes scattered open datasets — species occurrences, population density, protected-area and national boundaries — and turns them into one coherent, honestly-labelled, verifiable layer that runs on low-cost regional hosting. The value on offer is the plumbing done well, with its limits stated plainly, not any ecological finding. Think of it as a tidy first input a specialist might place alongside the data that actually matters, not a substitute for it.</p>
+
+  <h2>Context, not a mandate</h2>
+  <p>There is real funded work in this landscape — the IUCN–Total LandCare Human-Wildlife Co-habitation Project for the Malawi–Zambia TFCA, backed by Germany's BMZ through KfW. It exists because conflict here is real and documented. That work is the reason a data layer for this area is worth building at all. This project is not part of it, not commissioned by it, and does not speak for it — it simply uses the same open data the field relies on. <a href="https://iucn.org/news/202506/launch-human-wildlife-co-habitation-project-malawi-zambia-trans-frontier-conservation" target="_blank" rel="noopener">The project's launch brief &rarr;</a></p>
+
+  <div class="cover">
+    <div class="does">
+      <div class="head">What the engineering delivers</div>
+      <ul>
+        <li>Pulls live species occurrences from GBIF into a clean, cached layer</li>
+        <li>Overlays population density, protected areas, and national borders — all open, redistributable data</li>
+        <li>Flags each record's context (inside a park, in settled areas) as queryable attributes</li>
+        <li>Keeps a documented history table so the data can be read over time</li>
+        <li>Runs on low-cost shared hosting anyone in the region can afford</li>
+      </ul>
+    </div>
+    <div class="doesnt">
+      <div class="head">What it is NOT</div>
+      <ul>
+        <li>A human-wildlife conflict study — that is specialist work with real stakes</li>
+        <li>A hotspot or risk model — presence is an input to those, not the result</li>
+        <li>A source of incident data — those records sit with DNPW and partners</li>
+        <li>A census — a dot is a record, often not even one animal</li>
+        <li>A substitute for fieldwork, local knowledge, or expert judgement</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>What a dot means</h2>
+  <p>Each point on the map is a <em>record</em>, not an animal and not a count. Behind each one is a set of facts that decide what it means: how many individuals (often unstated — a single record can be a lone animal or a herd of forty), what kind of record (a live sighting, a museum specimen, a camera-trap trigger), how it was recorded, by whom, and how precisely its location is known. Reading these fields honestly is the difference between a map that informs and one that misleads — which is exactly the kind of care a specialist needs from any data handed to them.</p>
+
+  <p>So blank space on the map means "no record here", never "no animals here". Density reflects where people looked and reported, not true abundance. These are ordinary limits of open occurrence data, stated plainly so the layer can be trusted for what it is.</p>
+
+  <p>Put plainly: this is well-engineered, honestly-caveated open-data plumbing for a landscape where the real work is done by others. It is offered as a clean input to that work, not as a finding of its own.</p>
+
+  <a class="back" href="./">&larr; Back to the map</a>
+
+  <p class="foot">
+    Occurrence data: GBIF.org and its publishing institutions &middot;
+    Population data: WorldPop (worldpop.org), University of Southampton, CC-BY 4.0 &middot;
+    Protected-area boundaries: &copy; OpenStreetMap contributors (ODbL); reference WDPA / Protected Planet &middot;
+    National borders: &copy; geoBoundaries (CC-BY 4.0), William &amp; Mary geoLab &middot;
+    Landscape context: IUCN &amp; Total LandCare launch announcement, June 2025.
+  </p>
+</div>
+</body>
+</html>

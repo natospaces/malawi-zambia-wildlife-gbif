@@ -1,0 +1,31 @@
+# --- credentials (never commit) ---
+maza_config.php
+*.env
+.env
+
+# --- generated data artifacts (produced by the pipeline) ---
+public/occurrence_history.csv
+public/occurrence_history.csv.tmp
+public/settlements.json
+public/population.json
+public/protected_areas.geojson
+public/borders.geojson
+public/provinces.geojson
+
+# --- pipeline run logs / reports ---
+*.log
+report.txt
+history.log
+
+# --- python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- os / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

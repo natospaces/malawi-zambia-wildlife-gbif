@@ -1,0 +1,81 @@
+<svg viewBox="0 0 860 620" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <defs>
+    <style>
+      .title { font-family: Inter, system-ui, sans-serif; font-weight: 700; fill: #10161f; }
+      .tname { font-family: Inter, system-ui, sans-serif; font-weight: 700; font-size: 13px; fill: #ffffff; }
+      .col { font-size: 11px; fill: #26313f; }
+      .pk { font-size: 11px; fill: #9a6a12; font-weight: 700; }
+      .grp { font-size: 9.5px; fill: #8b98a8; letter-spacing: 0.06em; }
+      .type { font-size: 10px; fill: #8b98a8; }
+      .note { font-size: 10.5px; fill: #5d6a7a; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="860" height="620" fill="#ffffff"/>
+  <text x="40" y="44" class="title" font-size="22">Data model</text>
+  <text x="40" y="66" class="note">Three tables. occurrence_history is the core; load_log and etl_runs are bookkeeping the ETL writes.</text>
+
+  <!-- occurrence_history -->
+  <rect x="40" y="92" width="330" height="468" rx="8" fill="#ffffff" stroke="#c17b4a" stroke-width="1.5"/>
+  <rect x="40" y="92" width="330" height="30" rx="8" fill="#c17b4a"/>
+  <rect x="40" y="112" width="330" height="10" fill="#c17b4a"/>
+  <text x="56" y="112" class="tname">occurrence_history</text>
+
+  <text x="56" y="140" class="grp">IDENTITY</text>
+  <text x="56" y="158" class="pk">● gbif_id</text><text x="360" y="158" text-anchor="end" class="type">BIGINT · PK</text>
+  <text x="56" y="174" class="col">occurrence_id</text><text x="360" y="174" text-anchor="end" class="type">VARCHAR</text>
+  <text x="56" y="190" class="col">species · common_name</text><text x="360" y="190" text-anchor="end" class="type">VARCHAR</text>
+  <text x="56" y="206" class="col">scientific_name</text><text x="360" y="206" text-anchor="end" class="type">VARCHAR</text>
+
+  <text x="56" y="230" class="grp">HOW MANY / STATE</text>
+  <text x="56" y="248" class="col">individual_count</text><text x="360" y="248" text-anchor="end" class="type">INT</text>
+  <text x="56" y="264" class="col">organism_quantity(_type)</text><text x="360" y="264" text-anchor="end" class="type">DOUBLE/VARCHAR</text>
+  <text x="56" y="280" class="col">occurrence_status</text><text x="360" y="280" text-anchor="end" class="type">VARCHAR</text>
+  <text x="56" y="296" class="col">sex · life_stage · behavior</text><text x="360" y="296" text-anchor="end" class="type">VARCHAR</text>
+
+  <text x="56" y="320" class="grp">WHERE</text>
+  <text x="56" y="338" class="col">lat · lon</text><text x="360" y="338" text-anchor="end" class="type">DOUBLE</text>
+  <text x="56" y="354" class="col">coordinate_uncertainty_m</text><text x="360" y="354" text-anchor="end" class="type">DOUBLE</text>
+  <text x="56" y="370" class="col">locality · state_province</text><text x="360" y="370" text-anchor="end" class="type">VARCHAR</text>
+
+  <text x="56" y="394" class="grp">WHEN</text>
+  <text x="56" y="412" class="col">event_date · _year · _month</text><text x="360" y="412" text-anchor="end" class="type">DATE/INT</text>
+
+  <text x="56" y="436" class="grp">HOW RECORDED</text>
+  <text x="56" y="454" class="col">basis_of_record · trust_tier</text><text x="360" y="454" text-anchor="end" class="type">VARCHAR</text>
+  <text x="56" y="470" class="col">sampling_protocol</text><text x="360" y="470" text-anchor="end" class="type">VARCHAR</text>
+  <text x="56" y="486" class="col">recorded_by · identified_by</text><text x="360" y="486" text-anchor="end" class="type">VARCHAR</text>
+
+  <text x="56" y="510" class="grp">DERIVED · enrichment</text>
+  <text x="56" y="528" class="col">in_protected_area</text><text x="360" y="528" text-anchor="end" class="type">VARCHAR</text>
+  <text x="56" y="544" class="col">in_settled_area · nearest_settlement</text>
+
+  <!-- load_log -->
+  <rect x="410" y="92" width="410" height="176" rx="8" fill="#ffffff" stroke="#6f8fb0" stroke-width="1.5"/>
+  <rect x="410" y="92" width="410" height="30" rx="8" fill="#6f8fb0"/>
+  <rect x="410" y="112" width="410" height="10" fill="#6f8fb0"/>
+  <text x="426" y="112" class="tname">load_log</text>
+  <text x="426" y="146" class="note">One row per species per run — the anchor date each</text>
+  <text x="426" y="162" class="note">species was pulled from, so the five can be compared.</text>
+  <text x="426" y="192" class="col">species · common_name</text><text x="800" y="192" text-anchor="end" class="type">VARCHAR</text>
+  <text x="426" y="210" class="col">latest_date</text><text x="800" y="210" text-anchor="end" class="type">DATE · anchor</text>
+  <text x="426" y="228" class="col">window_from · window_to</text><text x="800" y="228" text-anchor="end" class="type">DATE</text>
+  <text x="426" y="246" class="col">record_count · loaded_at</text><text x="800" y="246" text-anchor="end" class="type">INT/DATETIME</text>
+
+  <!-- etl_runs -->
+  <rect x="410" y="300" width="410" height="196" rx="8" fill="#ffffff" stroke="#7fa86b" stroke-width="1.5"/>
+  <rect x="410" y="300" width="410" height="30" rx="8" fill="#7fa86b"/>
+  <rect x="410" y="320" width="410" height="10" fill="#7fa86b"/>
+  <text x="426" y="320" class="tname">etl_runs</text>
+  <text x="426" y="354" class="note">One row per ETL run. Read back by the cadence report to</text>
+  <text x="426" y="370" class="note">learn how often updating is actually worthwhile.</text>
+  <text x="426" y="400" class="col">run_at</text><text x="800" y="400" text-anchor="end" class="type">DATETIME</text>
+  <text x="426" y="418" class="col">fetched · new_records</text><text x="800" y="418" text-anchor="end" class="type">INT</text>
+  <text x="426" y="436" class="col">enriched · total_records</text><text x="800" y="436" text-anchor="end" class="type">INT</text>
+  <text x="426" y="454" class="col">csv_rows</text><text x="800" y="454" text-anchor="end" class="type">INT</text>
+  <text x="426" y="478" class="note">Doubles as an audit trail of every run.</text>
+
+  <!-- publish note -->
+  <rect x="410" y="516" width="410" height="44" rx="8" fill="#f4f6f9" stroke="#dfe6ee"/>
+  <text x="426" y="540" class="note">occurrence_history is exported verbatim to</text>
+  <text x="426" y="555" class="note">public/occurrence_history.csv — the file the map reads.</text>
+</svg>

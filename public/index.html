@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAZA occurrence viewer</title>
+
+<link rel="stylesheet" href="assets/leaflet.css">
+<link rel="stylesheet" href="assets/MarkerCluster.css">
+<link rel="stylesheet" href="assets/MarkerCluster.Default.css">
+
+<style>
+  :root {
+    --ink: #14201a;          /* deep miombo green-black */
+    --paper: #f3efe6;        /* dry-season grass */
+    --line: #cbbfa6;         /* faded map hairline */
+    --elephant: #6b5b73;
+    --lion: #c58a2e;
+    --hippo: #3f6f7a;
+    --croc: #557a46;
+    --buffalo: #8a4a3a;
+    --flag: #b23a2e;         /* quarantine red */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    color: var(--ink);
+    background: var(--paper);
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: 100vh;
+  }
+  aside {
+    border-right: 1px solid var(--line);
+    padding: 22px 20px;
+    overflow-y: auto;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 26px,
+        rgba(203,191,166,.25) 26px 27px);
+  }
+  h1 {
+    font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+    margin: 0 0 2px; font-weight: 700;
+  }
+  .sub { font-size: 11px; color: #6a6552; margin: 0 0 20px; letter-spacing: .04em; }
+  .meta { font-size: 11px; color: #6a6552; margin-bottom: 18px; line-height: 1.6; }
+  .meta b { color: var(--ink); font-weight: 600; }
+
+  .legend-title {
+    font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+    color: #8a856f; margin: 22px 0 8px; border-bottom: 1px solid var(--line);
+    padding-bottom: 4px;
+  }
+  .row {
+    display: grid; grid-template-columns: 14px 1fr auto;
+    align-items: center; gap: 10px;
+    padding: 7px 4px; cursor: pointer; border-radius: 3px;
+    font-size: 12px;
+  }
+  .row:hover { background: rgba(203,191,166,.35); }
+  .row.off { opacity: .38; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .glyph { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 16px; }
+  .name i { color: #6a6552; font-style: italic; font-size: 10.5px; display: block; }
+  .n { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .n small { color: var(--flag); font-weight: 600; margin-left: 6px; }
+
+  .note {
+    font-size: 10.5px; color: #7a755f; line-height: 1.55;
+    margin-top: 20px; border-top: 1px solid var(--line); padding-top: 12px;
+  }
+  #map { height: 100vh; }
+  .leaflet-container { background: #f2f0ec; }
+
+  /* Protected-area labels: clean green text, no bubble. */
+  .leaflet-tooltip.pa-label {
+    background: transparent; border: none; box-shadow: none;
+    color: #3c5636; font-family: ui-monospace, monospace;
+    font-size: 11px; font-weight: 700; letter-spacing: .03em;
+    text-shadow: 0 0 3px #f3efe6, 0 0 3px #f3efe6, 0 0 3px #f3efe6;
+    white-space: nowrap;
+  }
+  .leaflet-tooltip.pa-label::before { display: none; }
+
+  @media (max-width: 720px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 60vh; }
+    #map { height: 60vh; }
+    aside { border-right: none; border-bottom: 1px solid var(--line); }
+  }
+
+  /* ---- Hero overlay ---- */
+  #hero {
+    position: fixed; inset: 0; z-index: 2000;
+    background: var(--ink);
+    color: var(--paper);
+    display: flex; flex-direction: column;
+    justify-content: center;
+    padding: clamp(24px, 6vw, 96px);
+    overflow-y: auto;
+    transition: opacity .7s ease, visibility .7s ease;
+  }
+  #hero.dismissed { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  .hero-inner { max-width: 760px; margin: 0 auto; width: 100%; }
+
+  .hero-eyebrow {
+    font-family: ui-monospace, monospace;
+    font-size: 11px; letter-spacing: .28em; text-transform: uppercase;
+    color: #c58a2e; margin: 0 0 26px;
+    opacity: 0; transform: translateY(12px);
+    animation: rise .7s ease .1s forwards;
+  }
+  .hero-lead {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(26px, 4.6vw, 46px);
+    line-height: 1.18; font-weight: 400; margin: 0 0 30px;
+    letter-spacing: -0.01em;
+    opacity: 0; transform: translateY(16px);
+    animation: rise .8s ease .25s forwards;
+  }
+  .hero-lead b { color: #e8a13c; font-weight: 600; }
+
+  .hero-stats {
+    display: flex; flex-wrap: wrap; gap: 30px 44px;
+    margin: 0 0 34px; padding: 22px 0;
+    border-top: 1px solid rgba(243,239,230,.18);
+    border-bottom: 1px solid rgba(243,239,230,.18);
+    opacity: 0; transform: translateY(16px);
+    animation: rise .8s ease .45s forwards;
+  }
+  .hero-stat .fig {
+    font-family: ui-monospace, monospace;
+    font-size: clamp(28px, 5vw, 42px); font-weight: 700;
+    color: var(--paper); line-height: 1; display: block;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-stat .cap {
+    font-family: ui-monospace, monospace;
+    font-size: 11px; line-height: 1.5; color: #a8b0a0;
+    margin-top: 8px; max-width: 190px; display: block;
+  }
+  .hero-body {
+    font-family: Georgia, serif; font-size: clamp(15px, 2vw, 17px);
+    line-height: 1.65; color: #d6d2c4; margin: 0 0 34px;
+    opacity: 0; transform: translateY(16px);
+    animation: rise .8s ease .6s forwards;
+  }
+  .hero-body a { color: #e8a13c; text-decoration: underline; text-underline-offset: 3px; }
+
+  .hero-actions {
+    display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+    opacity: 0; transform: translateY(16px);
+    animation: rise .8s ease .78s forwards;
+  }
+  .hero-btn {
+    font-family: ui-monospace, monospace; font-size: 13px; letter-spacing: .04em;
+    background: #e8a13c; color: var(--ink); border: none;
+    padding: 15px 26px; border-radius: 2px; cursor: pointer; font-weight: 700;
+    transition: transform .15s ease, background .15s ease;
+  }
+  .hero-btn:hover { background: #f2b04e; transform: translateY(-2px); }
+  .hero-link {
+    font-family: ui-monospace, monospace; font-size: 12px;
+    color: #a8b0a0; text-decoration: none; letter-spacing: .03em;
+    border-bottom: 1px solid transparent; padding-bottom: 2px;
+  }
+  .hero-link:hover { color: var(--paper); border-bottom-color: #a8b0a0; }
+
+  .hero-foot {
+    font-family: ui-monospace, monospace; font-size: 10px; color: #7d857a;
+    margin-top: 40px; line-height: 1.6; letter-spacing: .02em;
+    opacity: 0; animation: rise .8s ease 1s forwards;
+  }
+
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-eyebrow, .hero-lead, .hero-stats, .hero-body, .hero-actions, .hero-foot {
+      animation: none; opacity: 1; transform: none;
+    }
+    #hero { transition: none; }
+  }
+
+  /* Re-open story button, sits over the map */
+  #reopen {
+    position: fixed; top: 12px; right: 12px; z-index: 1500;
+    font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .05em;
+    background: var(--ink); color: var(--paper); border: none;
+    padding: 9px 14px; border-radius: 2px; cursor: pointer; opacity: .82;
+  }
+  #reopen:hover { opacity: 1; }
+  /* Year slider + proximity toggle */
+  #timebar {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 22px; z-index: 1000;
+    background: rgba(243,239,230,0.94); border: 1px solid #cbbfa6;
+    border-radius: 6px; padding: 10px 14px; width: min(440px, 86vw);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    font-family: ui-monospace, monospace;
+  }
+  #timebar:empty { display: none; }
+  .tb-row { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 8px; }
+  .tb-step { font-size: 13px; font-weight: 700; color: #14201a; min-width: 150px; text-align: center; }
+  .tb-btn {
+    border: 1px solid #cbbfa6; background: transparent; color: #14201a;
+    font-family: ui-monospace, monospace; font-size: 11px;
+    padding: 6px 11px; border-radius: 3px; cursor: pointer;
+  }
+  .tb-play { font-size: 13px; min-width: 34px; }
+  .tb-btn.on, .tb-play.on { background: #c58a2e; border-color: #c58a2e; color: #fff; }
+  #tb-scrub { width: 100%; accent-color: #c58a2e; }
+  .tb-ends { display: flex; justify-content: space-between; font-size: 9px; color: #8a8266; margin-top: 3px; }
+  /* Species-shape cluster: glyph shows species, count badge in the corner */
+  .sp-cluster-wrap { position: relative; }
+  .sp-cluster-glyph { position: absolute; left: 0; top: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
+  .sp-cluster-badge {
+    position: absolute; top: -2px; right: -2px;
+    background: #14201a; color: #fff; font-family: ui-monospace, monospace;
+    font-size: 10px; font-weight: 700; line-height: 1;
+    padding: 2px 4px; border-radius: 8px; border: 1.5px solid #fff;
+    min-width: 8px; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="hero">
+  <div class="hero-inner">
+    <p class="hero-eyebrow">Malawi&ndash;Zambia Transfrontier Conservation Area</p>
+
+    <h1 class="hero-lead">
+      Along the Malawi&ndash;Zambia border, five wild species cross paths with
+      the villages that share their land. This is an open-data map of
+      <b>where and when</b> those paths were recorded &mdash; assembled as a
+      clean input for the people who study coexistence, not a study itself.
+    </h1>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="fig">5</span>
+        <span class="cap">conflict-prone species &mdash; elephant, lion, hippo, crocodile, buffalo &mdash; mapped from the open record</span>
+      </div>
+      <div class="hero-stat">
+        <span class="fig">village</span>
+        <span class="cap">each record labelled with its nearest named settlement, not just a region</span>
+      </div>
+      <div class="hero-stat">
+        <span class="fig">by year</span>
+        <span class="cap">scrub the timeline to see when these species were recorded near people</span>
+      </div>
+    </div>
+
+    <p class="hero-body">
+      Every point here is one open biodiversity record &mdash; where a species
+      was seen or collected, drawn from GBIF &mdash; placed against where people
+      live (WorldPop), the parks and reserves around them (OpenStreetMap), and
+      the border that splits this transfrontier landscape between two countries.
+      Each record carries its nearest village and the year it was noted, so the
+      map can show not just <em>where</em> these species turn up but <em>when
+      they turn up near settlement</em> &mdash; the timing that coexistence
+      actually turns on. It is not a conflict study, a census, or a hotspot
+      model: those are specialist work with real stakes. This is the data
+      plumbing beneath them, built openly and honestly about its limits, and it
+      runs on hosting anyone in the region can afford. Start with
+      <a href="about.html">what this is &amp; isn't</a>, or open the map.
+    </p>
+
+    <div class="hero-actions">
+      <button class="hero-btn" id="enter">See the map &rarr;</button>
+      <a class="hero-link" href="about.html">What this map covers</a>
+      <a class="hero-link" href="movement.html">Movement &amp; season</a>
+      <a class="hero-link" href="https://github.com/YOUR-USERNAME/maza-occurrence-viewer" target="_blank" rel="noopener">Story &amp; code</a>
+    </div>
+
+    <p class="hero-foot">
+      Occurrence data: GBIF.org and its publishing institutions &middot;
+      Human-cost figures: reporting via D+C, Mongabay, FairPlanet, IFAW &middot;
+      Landscape: Peace Parks Foundation / Frankfurt Zoological Society, funded through EU NaturAfrica &amp; KfW/GIZ &middot;
+      Built in Johannesburg
+    </p>
+  </div>
+</div>
+
+<button id="reopen" style="display:none">&#9432; Story</button>
+
+<aside>
+  <h1>MAZA occurrence viewer</h1>
+  <p class="sub">Malawi&ndash;Zambia Transfrontier Conservation Area</p>
+
+  <div class="meta" id="meta">Loading&hellip;</div>
+
+  <div id="legend"></div>
+
+  <p class="note" id="note"></p>
+</aside>
+
+<div id="map"></div>
+<div id="timebar"></div>
+
+<script src="assets/leaflet.js"></script>
+<script src="assets/leaflet.markercluster.js"></script>
+<script>
+// ---- Hero overlay control ----
+(function () {
+  const hero = document.getElementById('hero');
+  const enter = document.getElementById('enter');
+  const reopen = document.getElementById('reopen');
+  function dismiss() {
+    hero.classList.add('dismissed');
+    reopen.style.display = 'block';
+    // Leaflet needs a nudge once its container is fully visible.
+    setTimeout(function () { if (window._mazaMap) window._mazaMap.invalidateSize(); }, 750);
+  }
+  function show() {
+    hero.classList.remove('dismissed');
+    reopen.style.display = 'none';
+  }
+  enter.addEventListener('click', dismiss);
+  reopen.addEventListener('click', show);
+})();
+
+const COLORS = {
+  'Loxodonta africana':      getComputedStyle(document.documentElement).getPropertyValue('--elephant'),
+  'Panthera leo':            getComputedStyle(document.documentElement).getPropertyValue('--lion'),
+  'Hippopotamus amphibius':  getComputedStyle(document.documentElement).getPropertyValue('--hippo'),
+  'Crocodylus niloticus':    getComputedStyle(document.documentElement).getPropertyValue('--croc'),
+  'Syncerus caffer':         getComputedStyle(document.documentElement).getPropertyValue('--buffalo'),
+};
+
+// A distinct SHAPE per species so identity reads at a glance, not by colour
+// (five colours blur together on a busy map). Colour is kept as a secondary
+// cue, but the shape is what tells the species apart.
+const SHAPES = {
+  'Loxodonta africana':     'circle',
+  'Panthera leo':           'triangle',
+  'Hippopotamus amphibius': 'square',
+  'Crocodylus niloticus':   'diamond',
+  'Syncerus caffer':        'teardrop',
+};
+
+// Return SVG path/element markup for a species glyph at a given size, filled or
+// hollow (hollow = specimen record), in the species colour.
+function glyphSVG(species, size, filled, color) {
+  const s = size, c = s / 2, r = s * 0.42;
+  const fill = filled ? color : 'none';
+  const sw = filled ? 1 : 1.6;
+  const common = `fill="${fill}" stroke="${color}" stroke-width="${sw}"`;
+  let shape;
+  switch (SHAPES[species] || 'circle') {
+    case 'triangle':
+      shape = `<polygon points="${c},${c-r} ${c+r},${c+r} ${c-r},${c+r}" ${common}/>`; break;
+    case 'square':
+      shape = `<rect x="${c-r*0.85}" y="${c-r*0.85}" width="${r*1.7}" height="${r*1.7}" ${common}/>`; break;
+    case 'diamond':
+      shape = `<polygon points="${c},${c-r} ${c+r},${c} ${c},${c+r} ${c-r},${c}" ${common}/>`; break;
+    case 'teardrop':
+      shape = `<path d="M${c},${c-r} C${c+r},${c-r} ${c+r},${c+r*0.6} ${c},${c+r} C${c-r},${c+r*0.6} ${c-r},${c-r} ${c},${c-r} Z" ${common}/>`; break;
+    default: // circle
+      shape = `<circle cx="${c}" cy="${c}" r="${r}" ${common}/>`;
+  }
+  return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" style="display:block">${shape}</svg>`;
+}
+
+const map = L.map('map', { zoomControl: true });
+window._mazaMap = map;
+// Muted CartoDB Positron basemap: keeps country borders, names, and towns for
+// orientation (the Malawi–Zambia border is central to a transfrontier story),
+// but without the loud green vegetation shading of standard OSM tiles. The data
+// layers and amber population shading carry the colour. Non-commercial, no key.
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  maxZoom: 12, subdomains: 'abcd',
+  attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+}).addTo(map);
+
+// Park labels crowd when zoomed out. Show them only from zoom 7 up.
+const PA_LABEL_MIN_ZOOM = 7;
+function updatePaLabels() {
+  const show = map.getZoom() >= PA_LABEL_MIN_ZOOM;
+  paLabelLayers.forEach(l => {
+    const t = l.getTooltip && l.getTooltip();
+    if (t) t.setOpacity(show ? 1 : 0);
+  });
+}
+map.on('zoomend', updatePaLabels);
+
+const layers = {};   // species -> L.layerGroup
+const state  = {};   // species -> visible bool
+
+// Population overlay state
+let popLayer = null;
+let popData = null;
+let settleLayer = null;
+let settleData = null;
+
+// Protected-area state
+let paLayer = null;
+let paData = null;
+let paLabelLayers = [];
+
+// National-border state
+let borderLayer = null;
+let borderData = null;
+
+// Time slider + proximity filter state
+let allRecords = [];        // flat store: {p, species, year, month, season, ...}
+let proximityOnly = false;  // kept for internal use; button removed
+// Animation timeline: ordered wet/dry steps across the year range.
+let timeline = [];          // [{year, season, label}]
+let stepIndex = null;       // null = show all; else index into timeline
+let playing = false;
+let playTimer = null;
+
+function seasonOf(month) {
+  if (month === null || month === undefined) return null;
+  return (month >= 11 || month <= 4) ? 'wet' : 'dry';
+}
+// A record's "season-year": wet season spanning Nov–Dec belongs to the season
+// that ends the following year, but for a simple honest read we bucket by the
+// calendar year the record carries plus its season.
+function stepKeyOf(rec) {
+  if (rec.year == null || rec.season == null) return null;
+  return rec.year + ':' + rec.season;
+}
+
+async function loadJSON(path) {
+  try {
+    const r = await fetch(path, { cache: 'no-store' });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+async function loadPopulation() {
+  return loadJSON('population.json');
+}
+
+function renderBorders(data, provinces) {
+  if (!data || !data.features || !data.features.length) return null;
+  const group = L.layerGroup();
+
+  // 1. Dim everything OUTSIDE the two countries: a world-covering polygon with
+  //    each country punched out as a hole. Makes Malawi + Zambia "light up".
+  const world = [[-90, -180], [-90, 180], [90, 180], [90, -180]];
+  const holes = [];
+  data.features.forEach(f => {
+    const g = f.geometry;
+    const polys = g.type === 'Polygon' ? [g.coordinates]
+                : g.type === 'MultiPolygon' ? g.coordinates : [];
+    polys.forEach(poly => {
+      // outer ring of each polygon becomes a hole in the mask (lat,lng order)
+      holes.push(poly[0].map(c => [c[1], c[0]]));
+    });
+  });
+  L.polygon([world, ...holes], {
+    stroke: false, fillColor: '#8a8577', fillOpacity: 0.18, interactive: false,
+  }).addTo(group);
+
+  // 2. Faint province lines inside, for orientation (Eastern Province, etc.).
+  if (provinces && provinces.features) {
+    provinces.features.forEach(f => {
+      L.geoJSON(f, {
+        style: { color: '#9a9483', weight: 0.7, opacity: 0.5, fill: false, interactive: false },
+      }).addTo(group);
+    });
+  }
+
+  // 3. Thin, clean, solid national border on top.
+  data.features.forEach(f => {
+    L.geoJSON(f, {
+      style: { color: '#4a4a4a', weight: 1.4, opacity: 0.9, fill: false, interactive: false },
+    }).addTo(group);
+  });
+
+  return group;
+}
+
+function renderProtectedAreas(data) {
+  if (!data || !data.features || !data.features.length) return null;
+  const group = L.layerGroup();
+  data.features.forEach(f => {
+    const layer = L.geoJSON(f, {
+      style: {
+        color: '#557a46', weight: 2, fillColor: '#557a46',
+        fillOpacity: 0.06, dashArray: '4 3',
+      },
+    });
+    const nm = f.properties && f.properties.name ? f.properties.name : 'Protected area';
+    layer.bindPopup(
+      `<b>${nm}</b><br>` +
+      `<span style="font-size:11px;color:#777">${(f.properties && f.properties.country) || ''} &middot; protected area</span>`
+    );
+    // Permanent label, but only shown when zoomed in enough to avoid crowding.
+    layer.bindTooltip(nm, {
+      permanent: true, direction: 'center', className: 'pa-label',
+    });
+    layer.addTo(group);
+    paLabelLayers.push(layer);
+  });
+  return group;
+}
+
+// Point-in-polygon: is (lat,lon) inside any protected area?
+function protectedAreaAt(lat, lon) {
+  if (!paData) return null;
+  for (const f of paData.features) {
+    if (pointInGeometry(lon, lat, f.geometry)) return f.properties.name;
+  }
+  return null;
+}
+
+function pointInGeometry(x, y, geom) {
+  const polys = geom.type === 'Polygon' ? [geom.coordinates]
+              : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+  for (const poly of polys) {
+    if (pointInRing(x, y, poly[0])) {
+      // outer ring hit; check holes
+      let inHole = false;
+      for (let h = 1; h < poly.length; h++) {
+        if (pointInRing(x, y, poly[h])) { inHole = true; break; }
+      }
+      if (!inHole) return true;
+    }
+  }
+  return false;
+}
+
+function pointInRing(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// A small hut glyph — a simple dwelling mark. Villages read as a scatter of
+// these, signifying "people live here" without implying a built-up town.
+function hutSVG(size) {
+  const s = size;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 12 12" style="display:block">` +
+    `<path d="M6 1.5 L10.5 5 L9.5 5 L9.5 10 L2.5 10 L2.5 5 L1.5 5 Z" ` +
+    `fill="#7a6a52" stroke="#4a3f30" stroke-width="0.6" stroke-linejoin="round"/>` +
+    `</svg>`;
+}
+
+function renderSettlements(data) {
+  if (!data || !data.places || !data.places.length) return null;
+  // Cluster the hut marks so a settlement area shows a little group of huts,
+  // and a lone hamlet shows one — signifying people without overstating density.
+  const group = L.markerClusterGroup({
+    maxClusterRadius: 30, showCoverageOnHover: false, spiderfyOnMaxZoom: false,
+    iconCreateFunction: function(cluster) {
+      const n = cluster.getChildCount();
+      // more huts for bigger clusters, capped so it stays a "cluster of huts"
+      const huts = Math.min(n, 5);
+      let marks = '';
+      for (let i = 0; i < huts; i++) {
+        const dx = (i % 3) * 9, dy = Math.floor(i / 3) * 9;
+        marks += `<span style="position:absolute;left:${dx}px;top:${dy}px">${hutSVG(11)}</span>`;
+      }
+      const w = huts > 2 ? 29 : huts * 9 + 2;
+      return L.divIcon({
+        className: '',
+        html: `<div style="position:relative;width:${w}px;height:20px;opacity:0.9">${marks}</div>`,
+        iconSize: [w, 20],
+      });
+    },
+  });
+  data.places.forEach(s => {
+    if (s.lat == null || s.lon == null) return;
+    const m = L.marker([s.lat, s.lon], {
+      icon: L.divIcon({ className: '', html: `<div style="opacity:0.9">${hutSVG(12)}</div>`,
+                        iconSize: [12, 12], iconAnchor: [6, 6] }),
+    });
+    m.bindPopup(`<b>${s.name}</b><br><span style="font-size:11px;color:#777">${s.place || 'settlement'} (OpenStreetMap)</span>`);
+    group.addLayer(m);
+  });
+  return group;
+}
+
+function renderPopulation(data) {
+  if (!data || !data.cells || !data.cells.length) return null;
+  const rows = data.grid.rows, cols = data.grid.cols;
+  const [laMin, loMin, laMax, loMax] = data.bbox;
+  const latStep = (laMax - laMin) / rows;
+  const lonStep = (loMax - loMin) / cols;
+  const group = L.layerGroup();
+
+  // A high-density threshold picks out the cells that read as actual
+  // settlement (villages/towns) rather than the diffuse rural gradient. Use the
+  // 85th percentile of intensity so it adapts to the data.
+  const intensities = data.cells.map(c => c.intensity).sort((a, b) => a - b);
+  const hiThreshold = intensities[Math.floor(intensities.length * 0.85)] || 1;
+
+  for (const c of data.cells) {
+    const bounds = [
+      [c.lat - latStep / 2, c.lon - lonStep / 2],
+      [c.lat + latStep / 2, c.lon + lonStep / 2],
+    ];
+    const isHigh = c.intensity >= hiThreshold;
+    if (isHigh) {
+      // High-density settlement: its own layer — deeper colour, defined edge,
+      // so concentrated population reads as a place, not a smear.
+      L.rectangle(bounds, {
+        stroke: true, color: '#a8471f', weight: 1, fillColor: '#d1591f',
+        fillOpacity: 0.55, interactive: true,
+      }).bindPopup(`<b>Higher-density settlement</b><br>~${c.pop.toLocaleString()} people in this cell<br><span style="font-size:11px;color:#777">WorldPop 100m, aggregated</span>`).addTo(group);
+    } else {
+      // Diffuse rural gradient underneath.
+      const op = 0.08 + 0.35 * Math.sqrt(c.intensity);
+      L.rectangle(bounds, {
+        stroke: false, fill: true, fillColor: '#c58a2e', fillOpacity: op,
+        interactive: true,
+      }).bindPopup(`~${c.pop.toLocaleString()} people in this cell<br><span style="font-size:11px;color:#777">WorldPop 100m, aggregated</span>`).addTo(group);
+    }
+  }
+  return group;
+}
+
+async function api(q) {
+  const r = await fetch('api.php?q=' + q);
+  if (!r.ok) throw new Error('api ' + q + ' -> ' + r.status);
+  return r.json();
+}
+
+function markerFor(p, isOverlap) {
+  // Species identity = SHAPE. Emphasis (records near settlement) = larger and
+  // fully filled; context records are smaller and hollow/faded. Specimen
+  // records are always hollow regardless of emphasis.
+  const color = (COLORS[p.species] || '#333').trim();
+  const filled = isOverlap && p.trust_tier !== 'specimen';
+  const size = isOverlap ? 16 : 11;
+  const opacity = isOverlap ? 1 : 0.5;
+  return L.marker([p.lat, p.lon], {
+    icon: L.divIcon({
+      className: '',
+      html: `<div style="opacity:${opacity}">${glyphSVG(p.species, size, filled, color)}</div>`,
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+    })
+  });
+}
+
+async function boot() {
+  const [meta, counts] = await Promise.all([api('meta'), api('counts')]);
+
+  const [latMin, lonMin, latMax, lonMax] = meta.bbox.split(',').map(Number);
+  map.fitBounds([[latMin, lonMin], [latMax, lonMax]]);
+
+  document.getElementById('meta').innerHTML =
+    `Snapshot <b>${meta.snapshot}</b><br>` +
+    `Box <b>${latMin}, ${lonMin}</b> to <b>${latMax}, ${lonMax}</b><br>` +
+    `GBIF species occurrences over WorldPop population.`;
+
+  // National borders first: dim outside the two countries + thin solid line +
+  // faint provinces, so the Malawi–Zambia frontier reads clearly without clutter.
+  borderData = await loadJSON('borders.geojson');
+  const provincesData = await loadJSON('provinces.geojson');
+  if (borderData) {
+    borderLayer = renderBorders(borderData, provincesData);
+    if (borderLayer) borderLayer.addTo(map);
+  }
+
+  // Protected-area boundaries next, then population, then points.
+  paData = await loadJSON('protected_areas.geojson');
+  if (paData) {
+    paLayer = renderProtectedAreas(paData);
+    if (paLayer) paLayer.addTo(map);
+    updatePaLabels();
+  }
+
+  // Population layer next, so animal points draw on top of it.
+  popData = await loadPopulation();
+  if (popData) {
+    popLayer = renderPopulation(popData);
+    if (popLayer) popLayer.addTo(map);
+  }
+
+  // Settlements: draw the actual villages/towns as small hut-like marks, so
+  // proximity to people is visible directly on the map, not just inferred.
+  settleData = await loadJSON('settlements.json');
+  if (settleData && settleData.places) {
+    settleLayer = renderSettlements(settleData);
+    if (settleLayer) settleLayer.addTo(map);
+  }
+
+  const legend = document.getElementById('legend');
+
+  // Protected-area toggle row (only if data present).
+  if (paData && paLayer) {
+    const arow = document.createElement('div');
+    arow.className = 'row';
+    arow.innerHTML =
+      `<span class="dot" style="background:#557a46"></span>` +
+      `<span class="name">Protected areas<i>park & reserve boundaries (OSM)</i></span>` +
+      `<span class="n" style="font-size:10px;color:#7a755f">layer</span>`;
+    let aon = true;
+    arow.onclick = () => {
+      aon = !aon;
+      if (aon) { paLayer.addTo(map); arow.classList.remove('off'); }
+      else { map.removeLayer(paLayer); arow.classList.add('off'); }
+    };
+    legend.appendChild(arow);
+  }
+
+  // Population toggle row (only if data present).
+  if (popData && popLayer) {
+    const prow = document.createElement('div');
+    prow.className = 'row';
+    prow.innerHTML =
+      `<span class="dot" style="background:#c58a2e"></span>` +
+      `<span class="name">Where people live<i>WorldPop density &middot; deeper = settlement</i></span>` +
+      `<span class="n" style="font-size:10px;color:#7a755f">layer</span>`;
+    let pon = true;
+    prow.onclick = () => {
+      pon = !pon;
+      if (pon) { popLayer.addTo(map); prow.classList.remove('off'); }
+      else { map.removeLayer(popLayer); prow.classList.add('off'); }
+    };
+    legend.appendChild(prow);
+  }
+
+  // Settlements toggle row (only if data present).
+  if (settleData && settleLayer) {
+    const srow = document.createElement('div');
+    srow.className = 'row';
+    srow.innerHTML =
+      `<span class="glyph">${hutSVG(14)}</span>` +
+      `<span class="name">Villages &amp; towns<i>named settlements (OpenStreetMap)</i></span>` +
+      `<span class="n" style="font-size:10px;color:#7a755f">layer</span>`;
+    let son = true;
+    srow.onclick = () => {
+      son = !son;
+      if (son) { settleLayer.addTo(map); srow.classList.remove('off'); }
+      else { map.removeLayer(settleLayer); srow.classList.add('off'); }
+    };
+    legend.appendChild(srow);
+  }
+
+  const hdr = document.createElement('div');
+  hdr.className = 'legend-title';
+  hdr.textContent = 'Conflict-prone species';
+  legend.appendChild(hdr);
+
+  let totalFlagged = 0;
+
+  for (const c of counts) {
+    totalFlagged += c.flagged;
+    state[c.species] = true;
+    const color = (COLORS[c.species] || '#333').trim();
+
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML =
+      `<span class="glyph">${glyphSVG(c.species, 16, true, color)}</span>` +
+      `<span class="name">${c.common}<i>${c.species}</i></span>` +
+      `<span class="n">${c.clean.toLocaleString()}` +
+        (c.flagged ? `<small>+${c.flagged}\u26A0</small>` : ``) +
+      `</span>`;
+    row.onclick = () => toggle(c.species, row);
+    legend.appendChild(row);
+
+    // load this species' points and collect them into the flat store
+    const pts = await api('points&species=' + encodeURIComponent(c.species));
+
+    pts.forEach(p => {
+      const overlap = popData ? populationAt(p.lat, p.lon) : 0;
+      const settled = popData && overlap >= popData.settled_threshold;
+      const park = paData ? protectedAreaAt(p.lat, p.lon) : null;
+      // The "proximity" record = in a settled area, or on community land
+      // (outside any park) where people are present at all.
+      const isOverlap = settled || (paData && !park && overlap > 0);
+
+      allRecords.push({ p, species: c.species,
+                        year: p.year ?? null, month: p.month ?? null,
+                        season: seasonOf(p.month),
+                        settled, park, isOverlap, overlap });
+    });
+  }
+
+  const overlapNote = popData
+    ? ` Bright, ringed dots are records observed near settlements \u2014 close to villages or on community land. Faded dots are in sparsely-settled areas. Nearby points cluster into a count coloured by species; zoom in to separate them.`
+    : ``;
+  const paNote = paData
+    ? ` Green outlines are protected areas (OSM). Each record's popup says whether it falls inside a park or out in community land \u2014 where most conflict happens.`
+    : ``;
+  document.getElementById('note').innerHTML =
+    `Hollow squares are specimen records; filled dots are field observations.` +
+    paNote +
+    overlapNote +
+    ` Villages and towns are drawn as small hut marks, so you can see which records fall near settlement. Press play (or drag the scrubber) below to step through wet and dry seasons across the years and watch when records cluster near people.` +
+    (totalFlagged
+      ? ` ${totalFlagged} flagged record(s) excluded.`
+      : ``);
+
+  renderPoints();
+  buildTimeSlider();
+}
+
+// Rebuild cluster groups from the currently-filtered records. Module-scope so
+// the legend toggle and time controls can all trigger a re-render.
+function renderPoints() {
+  for (const sp in layers) { if (layers[sp]) map.removeLayer(layers[sp]); }
+  for (const sp in layers) delete layers[sp];
+
+  const grouped = {};
+  allRecords.forEach(rec => {
+    if (stepIndex !== null && timeline[stepIndex]) {
+      const t = timeline[stepIndex];
+      if (rec.year !== t.year || rec.season !== t.season) return;
+    }
+    if (!state[rec.species]) return;
+
+    if (!grouped[rec.species]) {
+      const spColor = (COLORS[rec.species] || '#555').trim();
+      const spSpecies = rec.species;
+      grouped[rec.species] = L.markerClusterGroup({
+        maxClusterRadius: 40, spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false, chunkedLoading: true,
+        // Cluster shows the species SHAPE (so identity reads), with the count in
+        // a small badge offset to the top-right corner — not covering the point
+        // location underneath.
+        iconCreateFunction: function(cluster) {
+          const n = cluster.getChildCount();
+          const size = n < 10 ? 26 : n < 100 ? 32 : 38;
+          const box = size + 14; // room for the corner badge
+          return L.divIcon({
+            className: '',
+            html: `<div class="sp-cluster-wrap" style="width:${box}px;height:${box}px">` +
+                    `<div class="sp-cluster-glyph">${glyphSVG(spSpecies, size, true, spColor)}</div>` +
+                    `<span class="sp-cluster-badge">${n}</span>` +
+                  `</div>`,
+            iconSize: [box, box], iconAnchor: [size/2, size/2],
+          });
+        },
+      });
+    }
+    const p = rec.p;
+    const m = markerFor(p, rec.isOverlap);
+    const parkLine = paData
+      ? (rec.park
+          ? `<br><span style="font-size:11px;color:#557a46">inside ${rec.park}</span>`
+          : `<br><span style="font-size:11px;color:#b23a2e">outside protected areas \u2014 community land</span>`)
+      : ``;
+    m.bindPopup(
+      `<b>${p.common}</b><br><i>${p.species}</i><br>` +
+      `${p.year ?? 'year n/a'} &middot; ${p.trust_tier}` +
+      (p.settlement ? `<br><span style="font-size:11px;color:#3a463c">nearest settlement: ${p.settlement}</span>` : ``) +
+      parkLine +
+      (popData ? `<br><span style="font-size:11px;color:${rec.settled ? '#b23a2e' : '#777'}">` +
+        (rec.settled ? '\u26A0 near a settlement (~' + Math.round(rec.overlap).toLocaleString() + ' people in this area)'
+              : 'sparsely settled area') + `</span>` : ``)
+    );
+    grouped[rec.species].addLayer(m);
+  });
+  for (const sp in grouped) { grouped[sp].addTo(map); layers[sp] = grouped[sp]; }
+}
+
+// Population in the grid cell containing (lat, lon).
+function populationAt(lat, lon) {
+  if (!popData) return 0;
+  const rows = popData.grid.rows, cols = popData.grid.cols;
+  const [laMin, loMin, laMax, loMax] = popData.bbox;
+  const gx = Math.floor((lon - loMin) / ((loMax - loMin) / cols));
+  const gy = Math.floor((laMax - lat) / ((laMax - laMin) / rows));
+  // cells are sparse; build an index once
+  if (!popData._idx) {
+    popData._idx = {};
+    const latStep = (laMax - laMin) / rows, lonStep = (loMax - loMin) / cols;
+    for (const c of popData.cells) {
+      const cx = Math.floor((c.lon - loMin) / lonStep);
+      const cy = Math.floor((laMax - c.lat) / latStep);
+      popData._idx[cy + ':' + cx] = c.pop;
+    }
+  }
+  return popData._idx[gy + ':' + gx] || 0;
+}
+
+function toggle(species, row) {
+  state[species] = !state[species];
+  if (state[species]) row.classList.remove('off');
+  else row.classList.add('off');
+  renderPoints();
+}
+
+// Build the season control (wet / dry / all) + proximity toggle.
+function buildTimeSlider() {
+  const host = document.getElementById('timebar');
+  if (!host) return;
+
+  // Build the ordered timeline of wet/dry steps across the year range present.
+  const years = allRecords.map(r => r.year).filter(y => y != null);
+  const seasons = new Set(allRecords.map(r => r.season).filter(Boolean));
+  if (!years.length || seasons.size < 1) return;
+  const yMin = Math.min(...years), yMax = Math.max(...years);
+  timeline = [];
+  for (let y = yMin; y <= yMax; y++) {
+    // dry then wet within a year (chronological-ish); include only seasons present
+    for (const s of ['dry', 'wet']) {
+      if (seasons.has(s)) timeline.push({ year: y, season: s, label: `${s === 'wet' ? 'Wet' : 'Dry'} ${y}` });
+    }
+  }
+  if (timeline.length < 2) return;
+
+  host.innerHTML =
+    `<div class="tb-row">` +
+      `<button class="tb-btn tb-play" id="tb-play" title="Play seasons">\u25B6</button>` +
+      `<span class="tb-step" id="tb-step">All records</span>` +
+      `<button class="tb-btn" id="tb-all">Reset</button>` +
+    `</div>` +
+    `<input type="range" id="tb-scrub" min="0" max="${timeline.length - 1}" value="0" step="1">` +
+    `<div class="tb-ends"><span>${timeline[0].label}</span><span>${timeline[timeline.length-1].label}</span></div>`;
+
+  const playBtn = document.getElementById('tb-play');
+  const scrub   = document.getElementById('tb-scrub');
+  const stepLbl = document.getElementById('tb-step');
+  const allBtn  = document.getElementById('tb-all');
+
+  function applyStep() {
+    if (stepIndex === null) { stepLbl.textContent = 'All records'; }
+    else {
+      const t = timeline[stepIndex];
+      stepLbl.textContent = t.label + (t.season === 'wet' ? ' (Nov–Apr)' : ' (May–Oct)');
+      scrub.value = stepIndex;
+    }
+    renderPoints();
+  }
+  function stopPlay() { playing = false; playBtn.textContent = '\u25B6'; if (playTimer) { clearInterval(playTimer); playTimer = null; } }
+  function startPlay() {
+    playing = true; playBtn.textContent = '\u2016';
+    if (stepIndex === null) stepIndex = 0;
+    playTimer = setInterval(() => {
+      stepIndex = (stepIndex + 1) % timeline.length;
+      applyStep();
+    }, 1100);
+  }
+
+  playBtn.onclick = () => { playing ? stopPlay() : startPlay(); if (playing) applyStep(); };
+  scrub.addEventListener('input', () => { stopPlay(); stepIndex = parseInt(scrub.value, 10); applyStep(); });
+  allBtn.onclick = () => { stopPlay(); stepIndex = null; applyStep(); };
+
+  applyStep();
+}
+
+boot().catch(e => {
+  document.getElementById('meta').textContent = 'Error: ' + e.message;
+});
+</script>
+</body>
+</html>
