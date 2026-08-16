@@ -1,5 +1,33 @@
 # MAZA Occurrence Viewer
 
+**[Live map → mqala.co.za/gbif](https://www.mqala.co.za/gbif/)**
+
+Data work for the NGO and conservation sector is often assumed to need a large
+platform — Microsoft Fabric, Databricks, Snowflake — plus a proprietary mapping
+and reporting layer on top. Those platforms are capable and convenient, and for
+large workloads they are worth the price. But their licensing is high and
+recurring, and not every project is large enough to need them: a Fabric capacity
+runs from about **$260/month** to **~$8,400/month**, Databricks and Snowflake
+production workloads reach into the thousands or tens of thousands per month, and
+per-user mapping and reporting licences sit on top of that.
+
+This project does the same kind of work — a real ETL pipeline, a relational
+database as the system of record, enrichment, idempotent loads, and a schedule
+that adjusts itself — at a size where free, self-hosted tools fit the job: PHP on
+shared hosting, a MySQL database, Python for offline builds, Leaflet for the map.
+It runs on about **$5/month**, with no licences and nothing that stops working
+when a subscription ends. The subject here is geospatial, but the point is
+matching the data-engineering stack to the size of the problem, not the map
+itself.
+
+It sits alongside real funded work — the IUCN–Total LandCare
+[Human-Wildlife Co-habitation Project](https://iucn.org/news/202506/launch-human-wildlife-co-habitation-project-malawi-zambia-trans-frontier-conservation)
+for the Malawi–Zambia TFCA (funded by Germany's BMZ through KfW) — not as part of
+it, but using the same open data the field uses, to show what a low-cost,
+self-hosted data layer for that area can look like.
+
+---
+
 An open-data pipeline and lightweight web map for species-occurrence records
 along the Malawi–Zambia transfrontier landscape. It pulls records from
 [GBIF](https://www.gbif.org/), makes **MySQL** the system of record, enriches
@@ -51,6 +79,49 @@ are what let that distinction survive into the map.
 
 ---
 
+## Why build it this way
+
+The usual stack for this kind of work is a large data platform plus a proprietary
+mapping and reporting layer. Those platforms are good. They give you managed
+infrastructure, tight integration, governance, and the room to grow — real value
+that a hand-built stack does not offer. At scale it is worth paying for. The
+question is not whether they are capable. It is whether the project in front of
+you is large enough to need them.
+
+Roughly what they cost:
+
+| Component | Rough cost | What it gives you |
+| --- | --- | --- |
+| Fabric | ~$260/mo (F2) to ~$8,400/mo (F64), + Power BI Pro per user below F64 | managed capacity, integrated reporting, governance |
+| Databricks | ~$8,000–50,000/mo at production scale (DBUs + VMs) | managed Spark, ML, scale |
+| Snowflake | per-credit (~$2–4) + $23/TB; production often $15k–60k/mo | elastic compute, data sharing |
+| ArcGIS Online / Pro | ~$500–760/user/yr; Pro Advanced ~$3,800–4,150/yr | full GIS toolset, support |
+| Power BI Pro | per-user monthly subscription | polished dashboards, sharing |
+
+This project sits at the other end of that range. It pulls a few hundred thousand
+records, adds context, and publishes a map — a job one small server handles on
+about **$5/month** of shared hosting, with open data and ordinary engineering
+(extract, load, enrich, publish, schedule). At this size the free stack is not a
+lesser choice. It fits the job, and it keeps running when the grant ends, with no
+licence to renew.
+
+The point is to match the tool to the size of the work:
+
+- **Small, well-defined projects** — a bounded dataset, a few sources, a map or
+  some reports — run fine on free, self-hosted tools. Using a large platform here
+  means paying for a size you do not have.
+- **As the work grows** — more pipelines, larger data, more users, stricter
+  governance — the paid platforms start to make sense, and a mix of both becomes
+  the practical answer: open tools and open data where they are enough, paid
+  platforms where their convenience, scale, or integration is worth paying for.
+
+The paid platforms are not wasteful, and free tools are not always better. The
+expensive option is simply not the only option, and for budget-limited work at
+this size the low-cost path is enough and lasts longer. Knowing where that line
+sits, and building on the right side of it, is the skill that matters.
+
+---
+
 ## Repository layout
 
 ```
@@ -81,8 +152,8 @@ are what let that distinction survive into the map.
     ├── ARCHITECTURE.md
     ├── SCHEMA.md
     └── diagrams/
-        ├── architecture.svg
-        └── data-model.svg
+        ├── architecture.png / .svg
+        └── data-model.png / .svg
 ```
 
 ---
